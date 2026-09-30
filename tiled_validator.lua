@@ -60,12 +60,16 @@ local function validate_tileset_image(tileset)
     raise_error("Ops! O tamanho da imagem do tileset excede o limite de 49 mil pixels")
   end
 
+  -- Extrai apenas a parte após a última barra (ex: "licgrenhll.png")
+  local filename = tileset.image:match("([^/]+)$") or tileset.image
+  
   if not tileset.image:match("%.png$") then
     raise_error("Ops! Apenas tilesets .png sao suportados")
   end
 
-  if not tileset.image:match("^[%w_]+%.png$") or #tileset.image > 32 then
-    raise_error("Ops! O nome da imagem do tileset " .. tileset.image .. " deve conter apenas letras, numeros\ne underline e ter menos de 24 caracteres")
+  -- Agora a validação roda apenas sobre o "filename" isolado
+  if not filename:match("^[%w_]+%.png$") or #filename > 24 then
+      raise_error("Ops! O nome da imagem do tileset " .. filename .. " deve conter apenas letras, numeros e underline e ter menos de 24 caracteres")
   end
 end
 
