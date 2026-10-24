@@ -7,7 +7,14 @@ local function encode_pixel_at(raw_data, idx, context)
 
   if r and g and b and a then
     local index = PixelIndexer.get_index(r, g, b, a, context)
-    return string.char(index - 1)
+    
+    -- Proteção contra estouro de byte (0 a 255)
+    local byte_val = math.floor(index - 1)
+    if byte_val < 0 or byte_val > 255 then
+      error(string.string or string.format("Índice de pixel inválido gerado: %s (original index: %s)", tostring(byte_val), tostring(index)))
+    end
+
+    return string.char(byte_val)
   end
   return nil
 end

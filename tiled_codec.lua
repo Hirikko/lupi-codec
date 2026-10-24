@@ -5,6 +5,25 @@ local Generator = require("tiled_generator")
 
 local TiledCodec = {}
 
+local function report_removed_layers(layers)
+  if #layers == 0 then
+    return
+  end
+
+  print(string.format(
+    "Aviso: %d camada(s) nao suportada(s) foram removida(s):",
+    #layers
+  ))
+
+  for _, layer in ipairs(layers) do
+    print(string.format(
+      "  - %s (%s)",
+      layer.name or "<sem nome>",
+      layer.type or "<tipo desconhecido>"
+    ))
+  end
+end
+
 function TiledCodec.process(filepath, relative_path, _context)
   local path = relative_path
   local f = io.open(filepath, "rb")
@@ -13,7 +32,12 @@ function TiledCodec.process(filepath, relative_path, _context)
   f:close()
 
   local map = json.decode(content)
+
   Validator.validate_map_attributes(map)
+
+  local removed_layers = Validator.filter_unsupported_layers(map)
+  report_removed_layers(removed_layers)
+
   Validator.validate_reserved_layer_names(map.layers)
 
   local sorted_tilesets, tileset_dictionary = Processor.process_tilesets(map)
@@ -21,12 +45,19 @@ function TiledCodec.process(filepath, relative_path, _context)
 
   for _, layer in ipairs(map.layers) do
     Validator.validate_layer_attributes(layer)
+
     local data = Processor.process_layer_data(layer, sorted_tilesets)
-    table.insert(processed_layers, { name = layer.name, data = data })
+
+    table.insert(processed_layers, {
+      name = layer.name,
+      data = data
+    })
   end
 
   local lua_content = Generator.generate_lua_map_string(
-    map, processed_layers, tileset_dictionary
+    map,
+    processed_layers,
+    tileset_dictionary
   )
 
   return {

@@ -45,6 +45,27 @@ function Validator.validate_map_attributes(map)
   end
 end
 
+local SUPPORTED_LAYER_TYPES = {
+  tilelayer = true
+}
+
+function Validator.filter_unsupported_layers(map)
+  local supported_layers = {}
+  local removed_layers = {}
+
+  for _, layer in ipairs(map.layers or {}) do
+    if SUPPORTED_LAYER_TYPES[layer.type] then
+      table.insert(supported_layers, layer)
+    else
+      table.insert(removed_layers, layer)
+    end
+  end
+
+  map.layers = supported_layers
+
+  return removed_layers
+end
+
 function Validator.validate_layer_attributes(layer)
   if layer.type ~= "tilelayer" then
     raise_error("Ops! Apenas camadas de tile sao suportadas")
@@ -60,12 +81,14 @@ local function validate_tileset_image(tileset)
     raise_error("Ops! O tamanho da imagem do tileset excede o limite de 49 mil pixels")
   end
 
-  if not tileset.image:match("%.png$") then
+  local filename = tileset.image:match("([^/]+)$") or tileset.image
+
+  if not filename:match("%.png$") then
     raise_error("Ops! Apenas tilesets .png sao suportados")
   end
 
-  if not tileset.image:match("^[%w_]+%.png$") or #tileset.image > 32 then
-    raise_error("Ops! O nome da imagem do tileset " .. tileset.image .. " deve conter apenas letras, numeros\ne underline e ter menos de 24 caracteres")
+  if not filename:match("^[%w_]+%.png$") or #filename > 32 then
+    raise_error("Ops! O nome da imagem do tileset " .. filename .. " deve conter apenas letras, numeros\ne underline e ter menos de 24 caracteres")
   end
 end
 
@@ -87,7 +110,10 @@ function Validator.validate_tileset(tileset)
   validate_tileset_image(tileset)
 end
 
-local RESERVED_LAYER_NAMES = { metadata = true, tilesets = true }
+local RESERVED_LAYER_NAMES = {
+  metadata = true,
+  tilesets = true
+}
 
 function Validator.validate_reserved_layer_names(layers)
   for _, layer in ipairs(layers) do
