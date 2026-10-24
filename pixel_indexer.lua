@@ -16,13 +16,6 @@ local function ensure_lookup(context)
 end
 
 local function add_new_color(context, hex, key)
-  -- Se já atingiu o limite de 256 cores (um byte), não adicione mais!
-  if #context.palette >= 256 then
-    -- Retorna o índice máximo permitido (256) ou o índice 1 como fallback
-    context.color_cache[key] = 256 
-    return 256
-  end
-
   table.insert(context.palette, hex)
 
   local qr, qg, qb = Convert.parse_hex_color(hex)
