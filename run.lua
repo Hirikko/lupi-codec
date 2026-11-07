@@ -2,6 +2,18 @@ local Colors = require("colors_manager")
 local Manifest = require("manifest")
 local Pipeline = require("pipeline")
 
+local function check_dependencies()
+  local is_windows = package.config:sub(1,1) == '\\'
+  local redirect = is_windows and "> NUL 2>&1" or "> /dev/null 2>&1"
+  local check = os.execute("magick -version " .. redirect)
+
+  -- os.execute retorna nil (Lua antigo), 0 (Lua 5.1) ou true (Lua 5.2+)
+  if check ~= 0 and check ~= true then
+    print("Erro: ImageMagick (magick) nao encontrado no PATH. Instale para continuar.")
+    os.exit(1)
+  end
+end
+
 local function ensure_dir(path)
   os.execute("mkdir -p '" .. path .. "'")
 end
@@ -71,6 +83,7 @@ local function perform_atomic_swap(output_dir, release_path)
 end
 
 local function main()
+  check_dependencies()
   local input_dir = arg[1]
   local output_dir = arg[2]
 

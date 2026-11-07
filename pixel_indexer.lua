@@ -7,7 +7,8 @@ local function ensure_lookup(context)
   if context.palette_lookup then return end
   context.palette_lookup = {}
 
-  for i = 2, #context.palette do
+  local limit = math.min(#context.palette, 256)
+  for i = 2, limit do
     local hex = context.palette[i]
     if not context.palette_lookup[hex] then
       context.palette_lookup[hex] = i
@@ -16,13 +17,31 @@ local function ensure_lookup(context)
 end
 
 local function add_new_color(context, hex, key)
-  -- Se já atingiu o limite de 256 cores (um byte), não adicione mais!
+  -- Se já atingiu o limite de 256 cores, busca a cor mais próxima
   if #context.palette >= 256 then
-    -- Retorna o índice máximo permitido (256) ou o índice 1 como fallback
-    context.color_cache[key] = 256 
-    return 256
+    context.discarded_colors = context.discarded_colors or {}
+    table.insert(context.discarded_colors, hex)
+
+    local r, g, b = Convert.parse_hex_color(hex)
+    local best_idx = 256 -- Fallback final
+    local min_dist = math.huge
+
+    -- Procura a cor mais próxima na paleta atual (ignorando o índice 1 que é transparência)
+    for i = 2, #context.palette do
+      local pr = context.palette_rgb[i]
+      local dist = Convert.color_dist_sq(r, g, b, pr.r, pr.g, pr.b)
+      if dist < min_dist then
+        min_dist = dist
+        best_idx = i
+        if dist == 0 then break end -- Se achar idêntica, para a busca
+      end
+    end
+
+    context.color_cache[key] = best_idx
+    return best_idx
   end
 
+  -- Se ainda há espaço, adiciona a nova cor normalmente
   table.insert(context.palette, hex)
 
   local qr, qg, qb = Convert.parse_hex_color(hex)
@@ -52,7 +71,7 @@ function PixelIndexer.get_index(r, g, b, a, context)
   ensure_lookup(context)
 
   local existing_idx = context.palette_lookup[hex]
-  if existing_idx then
+  if existing_idx and existing_idx <= 256 then
     context.color_cache[key] = existing_idx
     return existing_idx
   end

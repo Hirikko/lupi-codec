@@ -7,6 +7,8 @@ Processa uma pasta de jogo (sprites, mapas e scripts) e gera um release otimizad
 - Lua 5.3 ou superior
 - ImageMagick (`magick` disponível no `PATH`)
 
+> **Nota:** O script `run.lua` agora realiza uma checagem automática das dependências na inicialização. Se o ImageMagick não for encontrado, o codec exibirá uma mensagem de erro clara e interromperá a execução antes de processar qualquer arquivo
+
 ## Uso
 
 ```bash
@@ -28,10 +30,37 @@ lua run.lua ../meu-jogo /tmp/meu-jogo-release
    - Trata e limita o mapeamento de cores (máximo de 256 cores por imagem/paleta).
    - Remove os PNGs originais do release após o processamento.
 3. Converte mapas exportados pelo Tiled em formato JSON (`.json`) para scripts Lua.
-4. Ignora arquivos não necessários ao formato final.
-5. Gera `palette.lua` e atualiza `master_palette.json`.
-6. Gera `lupi_manifest.txt` com metadados dos arquivos processados.
-7. Cria o link simbólico `current`, apontando para o release gerado.
+4. Arquivos .fur são renomeados removendo a extensão e mantidos no release (o conteúdo binário é preservado).
+5. Ignora arquivos não necessários ao formato final.
+6. Gera `palette.lua` e atualiza `master_palette.json`.
+7. Gera `lupi_manifest.txt` com metadados dos arquivos processados.
+8. Cria o link simbólico `current`, apontando para o release gerado.
+
+## Áudio: Convertendo VGM para .fur
+
+O formato `.fur` (Furnace Tracker) é o formato nativo de áudio do motor Lupi. Ele permite músicas e efeitos sonoros com controle de canais e volume.
+
+Como o Furnace não importa VGM nativamente, a conversão deve ser feita **antes** de rodar o `lupi-codec`, usando a ferramenta externa `vgm2fur`.
+
+### Como instalar
+Você precisa ter o python e pipx instalado.
+
+1. vá até [vgm2fur](https://github.com/std282/vgm2fur)
+2. baixe o release `vgm2fur-0.4.1-py3-none-any.whl` 
+3. execute `pipx install vgm2fur-0.4.1-py3-none-any.whl` 
+
+**Nota sobre os chips**: 
+O vgm2fur suporta nativamente os chips do Master System (SN76489) e do Genesis (YM2612).
+Se a música usar chips diferentes, pode ser necessário adaptar o código-fonte da ferramenta (que agora é mantida pela comunidade).
+
+### Fluxo de trabalho:
+1. Obtenha o arquivo `.vgm` da música ou efeito sonoro.
+2. Converta usando o `vgm2fur`:
+``` bash
+   vgm2fur input.vgm -o output.fur
+``` 
+3. Coloque o arquivo .fur gerado na pasta `src/audio` do seu projeto.
+4. Rode o lupi-codec normalmente. Ele removerá a extensão .fur e empacotará o arquivo no release.
 
 ## Mapas do Tiled: tratamento de camadas
 
@@ -63,11 +92,13 @@ O formato de imagem utiliza exatamente **1 byte por pixel** para referenciar a p
 
 ### Correções Aplicadas
 
-1. **`pixel_indexer.lua`**:
-   - Adicionada uma trava de segurança na função `add_new_color`. Quando a paleta atinge o limite máximo de **256 cores**, qualquer cor excedente utiliza um mecanismo de *fallback* para o último índice válido (`256`), evitando o estouro de byte.
+1. **`pixel_indexer.lua` (Fallback Inteligente)**:
+   - Quando a paleta atinge o limite máximo de **256 cores**, o codec não joga mais as cores excedentes em um índice fixo.
+   - Foi implementado um mecanismo de **busca por distância de cor (Euclidean RGB)**. Se uma cor excedente precisar ser mapeada, o codec varre a paleta atual e escolhe a cor matematicamente mais próxima (usando a função `color_dist_sq`).
+   - Isso evita artefatos visuais (como um outline preto virar verde) e mantém a integridade estética dos sprites.
 
-2. **`image_encoder.lua`**:
-   - Adicionada uma validação defensiva na função `encode_pixel_at` para interceptar e diagnosticar imediatamente qualquer índice fora do intervalo permitido (`0` a `255`) antes de realizar a conversão com `string.char`.
+2. **`image_encoder.lua` (Validação Defensiva)**:
+   - Mantida a validação na função `encode_pixel_at` para interceptar e diagnosticar imediatamente qualquer índice fora do intervalo permitido (`0` a `255`) antes de realizar a conversão com `string.char`.
 
 ## Estrutura de saída
 
@@ -88,6 +119,7 @@ O formato de imagem utiliza exatamente **1 byte por pixel** para referenciar a p
 - `manifest.lua` — gera e salva o manifesto.
 - `pipeline.lua` — aplica os codecs aos arquivos do release.
 - `codecs.lua` — seleciona o codec de acordo com o arquivo.
+- `fur_codec.lua` — renomeia arquivos .fur para o release, removendo a extensão
 - `image_codec.lua` — converte PNGs para bitmap indexado.
 - `pixel_indexer.lua` — gerencia o índice de pixels e aplica o limite de 256 cores.
 - `image_encoder.lua` — codifica os dados brutos de imagem e valida intervalos de bytes.

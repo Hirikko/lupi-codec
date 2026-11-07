@@ -31,12 +31,21 @@ function TiledCodec.process(filepath, relative_path, _context)
   local content = f:read("*all")
   f:close()
 
-  local map = json.decode(content)
+  local ok, map = pcall(json.decode, content)
+if not ok or not map then
+  print("Erro ao decodificar JSON: " .. relative_path)
+  return { { type = "DELETE", path = relative_path } }
+end
 
   Validator.validate_map_attributes(map)
 
   local removed_layers = Validator.filter_unsupported_layers(map)
   report_removed_layers(removed_layers)
+
+  -- Avisa se o mapa ficou sem camadas
+  if #map.layers == 0 then
+    print("Aviso: O mapa " .. relative_path .. " nao possui nenhuma camada de tile! isso esta correto ?")
+  end
 
   Validator.validate_reserved_layer_names(map.layers)
 

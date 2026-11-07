@@ -86,7 +86,17 @@ function Pipeline.run_transformations(release_path, repo_root)
     manifest_file:close()
   end
 
+  -- RELATÓRIO: cores descartadas pelo PixelIndexer
+  if context.discarded_colors and #context.discarded_colors > 0 then
+    print(string.format(
+      "Aviso: %d cor(es) excedente(s) foram descartadas e mapeadas para o índice 256:",
+      #context.discarded_colors
+    ))
+    for _, hex in ipairs(context.discarded_colors) do
+      print("  - " .. hex)
+    end
+  end
+
   return final_items, master_palette
 end
-
 return Pipeline

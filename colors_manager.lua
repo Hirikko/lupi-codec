@@ -60,9 +60,16 @@ function Manager.update_palette(repo_root, files)
     end
   end
 
-  local palette_exceeds_lupi_limit = #palette > 256
-  if palette_exceeds_lupi_limit then
-    print("[ColorsManager] Palette size exceeds 256 colors for repo: " .. repo_root)
+  if #palette > 256 then
+    print(string.format("[ColorsManager] AVISO: A paleta mestre excedeu 256 cores (%d cores).", #palette))
+    print("As seguintes cores serão descartadas e não farão parte do palette.lua:")
+    for i = 257, #palette do
+      print(string.format("  - [%d] %s", i, palette[i]))
+    end
+    -- Truncar: mantém apenas as primeiras 256 cores
+    for i = #palette, 257, -1 do
+      palette[i] = nil
+    end
   end
 
   save_palette(palette_path, palette)
